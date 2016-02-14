@@ -16,6 +16,8 @@ piling up:
 
 So I made `pathmod` to fix this problem.
 
+This has been tested exclusively on Mac OS X. I'd like it to work everywhere, so if you try it on something else and it doesn't work, open an issue.
+
 # Installation
 
 Either:
