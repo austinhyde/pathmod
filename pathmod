@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -o errexit -o pipefail
+
+# usage: pathmod /usr/local/bin
+#        pathmod -r/usr/local/bin
+# prints a newly calculated path
+# apply with: export PATH="$(pathmod foo bar)"
+
+APPEND=false
+EVALOUT=false
+REMOVE=false
+newpath="$PATH"
+
+while getopts :aerhp: opt; do
+  case $opt in
+    a) APPEND=true ;;
+    e) EVALOUT=true ;;
+    r) REMOVE=true ;;
+    p) newpath="$OPTARG" ;;
+    h)
+      echo "Usage: pathmod [-aehr] [-p pathstring] [paths...]"
+      echo "Adds or removes entries from your PATH environment variable"
+      echo "Default behavior is to echo the new PATH value with the given paths prepended, with duplicate entries removed"
+      echo "Note that this cannot set the PATH variable directly"
+      echo "  -a            Append the path entry rather than prepend it"
+      echo "  -e            Echo an eval-able statement for easier use."
+      echo '                For example: eval $(pathmod -e foo)'
+      echo "  -h            Print this help message"
+      echo "  -r            Remove the given paths from the PATH."
+      echo "  -p pathstring Use pathstring instead of the current PATH value"
+      echo
+      echo "Examples:"
+      echo "  Add composer binaries to the beginning of PATH:"
+      echo '    $ eval $(pathmod -e $HOME/.composer/vendor/bin)'
+      echo "  Remove /usr/local/bin from the path"
+      echo '    $ eval $(pathmod -er /usr/local/bin)'
+      echo "  Print the current PATH"
+      echo "    $ pathmod"
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument"
+      exit 1
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG"
+      exit 1
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+IFS=':'
+paths="$*"
+
+if [ $# -gt 0 ]; then
+  if [ $APPEND == true ]; then
+    newpath="$newpath:$paths"
+  else
+    newpath="$paths:$newpath"
+  fi
+  if [ $REMOVE == true ]; then
+    for a in "$@"; do
+      a="$(echo "$a" | sed 's/[\/&]/\\&/g')"
+      newpath="$(echo "$newpath" | tr ':' '\n' | sed -n "/^$a$/!p" | paste -sd : -)"
+    done
+  fi
+fi
+
+# dedupe, preferring the first instance
+newpath="$(echo "$newpath" | tr ':' '\n' | perl -ne '$H{$_}++ or print' | paste -sd : -)"
+
+if [ $EVALOUT == true ]; then
+  echo "export PATH=\"$(echo "$newpath")\""
+else
+  echo "$newpath"
+fi
